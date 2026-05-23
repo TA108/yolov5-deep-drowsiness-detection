@@ -1,6 +1,9 @@
 /runs
 /labelImg
 yolov5s.pt
-dataset
+dataset/images/*jpg
+dataset/labels/*txt
+dataset/labels.cache
+dataset/labels.cache.npy
 yolov5
     
