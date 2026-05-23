@@ -9,9 +9,9 @@ A real-time deep learning–based drowsiness detection system built using YOLOv5
 - Real-time drowsiness detection using webcam
 - Custom dataset creation (`awake`, `drowsy`)
 - Image annotation using LabelImg
-- YOLOv5 custom training
+- YOLOv5 custom model training
 - Image testing and webcam inference
-- GPU acceleration support using CUDA
+- GPU acceleration using CUDA
 
 ---
 
@@ -21,26 +21,36 @@ A real-time deep learning–based drowsiness detection system built using YOLOv5
 yolov5-deep-drowsiness-detection/
 │
 ├── dataset/
-│   ├── images/        # Empty folder (add collected images here)
-│   └── labels/        # Empty folder (add YOLO labels here)
+│   ├── images/                # Empty (add collected images)
+│   └── labels/                # Empty (add generated YOLO labels)
 │
 ├── environment.yml
-│
 ├── dataset.yml
 │
+├── exp7/                      # Optional pre-trained experiment folder
+│   └── weights/
+│       ├── best.pt
+│       └── last.pt
+│
 ├── object_detection_yolov5.ipynb
-│
 ├── train_drowsiness_detection.ipynb
-│
 ├── realtime_drowsiness_detection.ipynb
 │
 └── README.md
 ```
 
-Note:
-- `dataset/images` and `dataset/labels` are intentionally kept empty.
-- Add your own collected images and generated labels.
-- Move `dataset.yml` into the `yolov5/` folder after cloning YOLOv5.
+### Notes
+
+- `dataset/images` and `dataset/labels` are intentionally empty.
+- Add your own images and labels before training.
+- `dataset.yml` must remain in the project root.
+- During training, YOLOv5 reads it using:
+
+```text
+../dataset.yml
+```
+
+- `exp7` is provided as a pre-trained experiment and can be used directly for testing without retraining.
 
 ---
 
@@ -64,48 +74,38 @@ conda activate <environment_name>
 
 ## Clone YOLOv5
 
-Run:
+Clone YOLOv5 inside project directory:
 
 ```bash
 git clone https://github.com/ultralytics/yolov5
 ```
 
-Move:
-
-```text
-dataset.yml
-```
-
-into:
-
-```text
-yolov5/
-```
-
 Result:
 
 ```text
-yolov5/
+yolov5-deep-drowsiness-detection/
+│
 ├── dataset.yml
-├── train.py
-├── ...
+├── yolov5/
+│   ├── train.py
+│   └── ...
 ```
 
 ---
 
-## Notebook Overview
+# Notebook Overview
 
-### 1. object_detection_yolov5.ipynb
+## 1. object_detection_yolov5.ipynb
 
-Use this notebook to verify that YOLOv5 installation is working.
+Use this notebook to verify that YOLOv5 installation is working correctly.
 
 Includes:
 
 - Loading pretrained YOLOv5
-- Image inference
-- Webcam inference
+- Image object detection
+- Webcam object detection
 
-Run:
+Example:
 
 ```python
 model = torch.hub.load(
@@ -116,62 +116,139 @@ model = torch.hub.load(
 ```
 
 Expected:
-- Detect objects on sample image
-- Open webcam detection window
+
+- Detect objects in sample image
+- Open live webcam detection
 
 ---
 
-### 2. train_drowsiness_detection.ipynb
+## 2. train_drowsiness_detection.ipynb
 
-Use this notebook to train a custom drowsiness detection model.
+Train a custom drowsiness detection model.
 
 Pipeline:
 
-1. Clone YOLOv5
-2. Collect images from webcam
-3. Create:
-   - `awake`
-   - `drowsy`
-4. Label images using LabelImg
-5. Train YOLOv5
-6. Test trained model
+### Step 1 — Clone YOLOv5
 
-Training:
+```bash
+git clone https://github.com/ultralytics/yolov5
+```
+
+### Step 2 — Collect Images
+
+Collect images for:
+
+```text
+awake
+drowsy
+```
+
+Images are saved to:
+
+```text
+dataset/images
+```
+
+### Step 3 — Label Images
+
+Install LabelImg:
+
+```bash
+git clone https://github.com/HumanSignal/labelImg.git
+
+pip install pyqt5 lxml --upgrade
+
+cd labelImg
+
+pyrcc5 -o libs/resources.py resources.qrc
+```
+
+Generate labels and store in:
+
+```text
+dataset/labels
+```
+
+### Step 4 — Train Model
+
+Move into YOLOv5:
+
+```python
+%cd yolov5
+```
+
+Run:
 
 ```bash
 python train.py \
---img 320 \
---batch 20 \
---epochs 500 \
---data dataset.yml \
---weights yolov5s.pt \
---device 0 \
---workers 2
+    --img 320 \
+    --batch 20 \
+    --epochs 500 \
+    --data "../dataset.yml" \
+    --weights yolov5s.pt \
+    --device 0 \
+    --workers 2
 ```
 
-Model output:
+Output:
 
 ```text
-yolov5/runs/train/exp*/weights/
+yolov5/runs/train/exp*/
 ```
 
-Update:
+Example:
+
+```text
+yolov5/runs/train/exp7/
+```
+
+### Step 5 — Test Model
+
+Update path:
 
 ```python
 path = r"yolov5\runs\train\expX\weights\best.pt"
 ```
 
-before testing.
+Load:
+
+```python
+model = torch.hub.load(
+    'ultralytics/yolov5',
+    'custom',
+    path=path,
+    force_reload=True
+)
+```
 
 ---
 
-### 3. realtime_drowsiness_detection.ipynb
+## 3. realtime_drowsiness_detection.ipynb
 
-Run trained model for live detection.
+Run trained model for real-time webcam detection.
 
-Before running:
+### Option 1 — Use Existing Trained Model
 
-Move trained experiment folder:
+Use provided:
+
+```text
+exp7/
+```
+
+Load:
+
+```python
+model = torch.hub.load(
+    'ultralytics/yolov5',
+    'custom',
+    path=r'exp7\weights\last.pt',
+    force_reload=True
+)
+```
+
+### Option 2 — Use Your Own Training Output
+
+Copy:
 
 ```text
 yolov5/runs/train/expX
@@ -186,15 +263,10 @@ project_root/expX
 Update:
 
 ```python
-model = torch.hub.load(
-    'ultralytics/yolov5',
-    'custom',
-    path=r'expX\weights\last.pt',
-    force_reload=True
-)
+path=r'expX\weights\last.pt'
 ```
 
-Run notebook to start webcam inference.
+Run notebook.
 
 Controls:
 
@@ -213,7 +285,7 @@ awake
 drowsy
 ```
 
-Directory:
+Structure:
 
 ```text
 dataset/
@@ -253,4 +325,4 @@ yolov5/
 
 ## License
 
-This project is for educational and research purposes.
+This project is intended for educational and research purposes.
